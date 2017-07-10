@@ -38,6 +38,9 @@ You can specify the max/min lat/lng (ex, your city), and then use linux crontab 
 
 */30 * * * * /usr/bin/python /root/refreshPortals.py >> /root/refreshPortals.log 2>&1
 
+As of now the scripts need database connection and don't have and UI. Maybe later I will try to do some coding for the UI part.
+Hope you have a nice day with this script.
+
 
 ## LICENSE
 
