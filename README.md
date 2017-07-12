@@ -1,35 +1,22 @@
-# INGRESS_CAPTURE_LOG
+# Ingrex
 
-## DESCRPTION
-Fetch the comm log within a specific area, and logging the capture information.
-Thanks for the ingrex_lib project(https://github.com/blackgear/ingrex_lib). It is implemented and enhanced a lot in my code.
+A python lib for Google Ingress including all necessary functions you need to build a bot.
 
-## INTRODUCTION
-1. refreshPortal.py
-    Use Linux crontab to refresh portal's owner and team every 30 minutes. 
+Support both Python 2 and 3.
 
-2. refreshCookies.py
-    Specify your ingress account, and get the latest SACSID. You can use Linux crontab to refresh the cookies timely.
+This code was mainly written when I just learn Python few weeks and maybe outdated because I have no time to rewrite it, feel free to fork and improve it.
 
-3. calculateTilekeys.py
-    Calculate tilekeys for the newly added portals. And wait for being refreshed by field.py.
+## How to
 
-4. comm.py
-    Fetch comm log within a specific area. Refresh the portal details if the player action is 'captured' or 'destroyed a Resonator on'.
+Grab your cookies from Chrome F12 or Firefox and use the format like this:
 
-5. field.py
-    Fetch all the portals in one tilekey, and refresh the capture status.
+    SACSID=AAAA...AAAA; csrftoken=BBBB....BBBB; ingress.intelmap.shflt=viz; ingress.intelmap.lat=40.0000000000000; ingress.intelmap.lng=120.00000000000000; ingress.intelmap.zoom=16
 
-## HOWTO
-You can specify the max/min lat/lng (ex, your city), and then use linux crontab to run the scripts timely like this:
+You can copy the cookies with this format from Chrome's F12.
 
-0 */3 * * * /usr/bin/python /root/refreshCookies.py >> /root/refreshCookies.log 2>&1
-*/2 * * * * /usr/bin/python /root/comm.py >> /root/comm.log 2>&1
-*/15 * * * * /usr/bin/python /root/calculateTilekeys.py >> /root/caltilekey.log 2>&1
-*/30 * * * * /usr/bin/python /root/field.py >> /root/field.log 2>&1
-*/30 * * * * /usr/bin/python /root/refreshPortals.py >> /root/refreshPortals.log 2>&1
+The comm.py shows how to write a simple COMM monitor.
 
-
+The field.py shows how to write a simple Map infomation downloader.
 
 ## LICENSE
 

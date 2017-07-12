@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<data>
+    <database>
+        <host></host>
+        <user></user>
+        <password></password>
+        <database></database>
+        <use_unicode></use_unicode>
+        <charset></charset>
+    </database>
+    <field>
+        <minLngE6></minLngE6>
+        <minLatE6></minLatE6>
+        <maxLngE6></maxLngE6>
+        <maxLatE6></maxLatE6>
+    </field>
+    <googleaccount>
+        <username></username>
+        <password></password>
+    </googleaccount>
+    <time>
+        <timedelta></timedelta>
+    </time>
+    <actions>
+        <action></action>
+        <action></action>
+    </actions>
+    <cookiepath></cookiepath>
+    <entityendings>
+        <entityending></entityending>
+        <entityending></entityending>
+        <entityending></entityending>
+    </entityendings>
+    <tilekeyformat></tilekeyformat>
+    <queries>
+        <query name="update_maxts"></query>
+    </queries>
+</data>

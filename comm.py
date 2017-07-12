@@ -3,22 +3,21 @@ import ingrex
 import time, pymysql
 import sys, requests
 from datetime import datetime, timedelta
+from ingrex.xmlReader import xmlReader
 
 
 def main():
     "main function"
-    cur_time = datetime.utcfromtimestamp(time.time()) + timedelta(hours=8)
+    islocal = False
+    d = xmlReader()
+    tdelta = d.gettimedelta()
+    cur_time = datetime.utcfromtimestamp(time.time()) + timedelta(hours=tdelta)
     cur_time = cur_time.strftime('%Y-%m-%d %H:%M:%S')
     print('{} -- Start Logging...'.format(cur_time))
-    reload(sys)
-    sys.setdefaultencoding('utf-8')
-    field = {
-        'minLngE6': ,
-        'minLatE6': ,
-        'maxLngE6': ,
-        'maxLatE6': ,
-    }
-
+    if islocal is False:
+        reload(sys)
+        sys.setdefaultencoding('utf-8')
+    field = d.getfieldrange()
     mints = get_max_timestamp()
     maxts = int(time.time() * 1000)
     l_mints = maxts
@@ -27,7 +26,7 @@ def main():
     result = ''
     s = requests.Session()
 
-    with open('cookies') as cookies:
+    with open(d.getcookiepath(islocal=islocal)) as cookies:
         cookies = cookies.read().strip()
     intel = ingrex.Intel(cookies, field, s)
     update_maxts(int(maxts))
@@ -40,9 +39,8 @@ def main():
                 if ts <= l_mints:
                     l_mints = ts
                 print('{} {} {}'.format(message.time, message.team, message.text))
-                # 'captured', 'deployed a Resonator on', 'destroyed a Resonator on'
-                # no longer monitor deploy res
-                if message.player_action.strip() in ['captured', 'destroyed a Resonator on']:
+
+                if message.player_action.strip() in d.getactions():
                     insert_comm(message)
                     portal_guid = fetch_portal_guid(message)
                     if portal_guid == "":
@@ -72,38 +70,29 @@ def main():
 
 def update_maxts(maxts):
     try:
-        query = "UPDATE ? set MAX_TIMESTAMP = '{}';".format(maxts)
-        # print(query)
-        db = pymysql.connect("")
-        cursor = db.cursor()
+        db, cursor = connect_to_db()
+        query = get_query(name="update_maxts").format(maxts)
         cursor.execute(query)
         db.commit()
     except Exception as e:
         print(query)
         raise e
     finally:
-        if cursor:
-            cursor.close()
-        if db:
-            db.close()
+        close_db(db, cursor)
 
 
 def get_max_timestamp():
     try:
-        query = "select MAX_TIMESTAMP from ?;"
-        # print(query)
-        db = pymysql.connect("")
-        cursor = db.cursor()
+        db, cursor = connect_to_db()
+        query = get_query(name="get_max_ts")
         cursor.execute(query)
         r = cursor.fetchall()[0][0]
     except Exception as e:
         print('Failed to fetch max timestamp.')
         raise e
     finally:
-        if cursor:
-            cursor.close()
-        if db:
-            db.close()
+        close_db(db, cursor)
+
     if r:
         if int(time.time() * 1000) - int(r) > 240000:
             print("Timestamp is too old(earlier than current timestamp minus 4 mins): {}".format(r))
@@ -120,30 +109,24 @@ def get_max_timestamp():
 
 def insert_comm(message):
     try:
-        query = "INSERT INTO ? VALUES (NOW(), '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}');"\
+        db, cursor = connect_to_db()
+        query = get_query(name="insert_comm")\
             .format(message.time, message.timestamp, message.player_team, message.player_name, message.player_action, message.portal_name, message.portal_addr, message.portal_lngE6, message.portal_latE6, message.portal_text, message.raw)
-        # print(query)
-        db = pymysql.connect("")
-        cursor = db.cursor()
         cursor.execute(query)
         db.commit()
     except Exception as e:
         print(query)
         raise e
     finally:
-        if cursor:
-            cursor.close()
-        if db:
-            db.close()
+        close_db(db, cursor)
 
 
 def fetch_portal_guid(message):
     portal_guid = ""
     try:
-        query = "select portal_guid from ? where PORTAL_LNGE6 = '{}' and PORTAL_LATE6 = '{}' and PORTAL_NAME = '{}';"\
+        db, cursor = connect_to_db()
+        query = get_query(name="fetch_portal_guid")\
             .format(message.portal_lngE6, message.portal_latE6, message.portal_name)
-        db = pymysql.connect("")
-        cursor = db.cursor()
         cnt = cursor.execute(query)
         if cnt == 1:
             r = cursor.fetchall()
@@ -155,23 +138,19 @@ def fetch_portal_guid(message):
         print(query)
         raise e
     finally:
-        if cursor:
-            cursor.close()
-        if db:
-            db.close()
+        close_db(db, cursor)
     return portal_guid
 
 
 def update_capture_status(message, portal, iscapture=True):
-    query_capture = "update ? set UPDATE_TIME = '{}', PORTAL_ADDR = '{}', PORTAL_OWNER = '{}', PORTAL_TEAM = '{}', CAPTURE_TIME = '{}' where PORTAL_LNGE6 = '{}' and PORTAL_LATE6 = '{}' and PORTAL_NAME = '{}';"\
+    query_capture = get_query(name="update_capture_status")\
         .format(message.time, message.portal_addr, portal.owner, portal.team, message.time, portal.lngE6, portal.latE6, portal.name)
-    query_refresh = "update ? set UPDATE_TIME = '{}', PORTAL_ADDR = '{}', PORTAL_OWNER = '{}', PORTAL_TEAM = '{}' where PORTAL_LNGE6 = '{}' and PORTAL_LATE6 = '{}' and PORTAL_NAME = '{}';"\
+    query_refresh = get_query(name="refresh_update_time")\
         .format(message.time, message.portal_addr, portal.owner, portal.team, portal.lngE6, portal.latE6, portal.name)
-    query_select = "select * from ? where PORTAL_LNGE6 = '{}' and PORTAL_LATE6 = '{}' and PORTAL_NAME = '{}';"\
+    query_select = get_query(name="select_portal_by_detail")\
         .format(portal.lngE6, portal.latE6, portal.name)
     try:
-        db = pymysql.connect("")
-        cursor = db.cursor()
+        db, cursor = connect_to_db()
         cursor.execute(query_select)
         r = cursor.fetchall()
         if time.strptime(r[0][1], '%Y-%m-%d %H:%M:%S') > time.strptime(message.time, '%Y-%m-%d %H:%M:%S'):
@@ -181,7 +160,6 @@ def update_capture_status(message, portal, iscapture=True):
                 cursor.execute(query_capture)
             else:
                 owner = r[0][8]
-                # team = r[0][9]
                 if portal.owner != owner:
                     cursor.execute(query_capture)
                 else:
@@ -191,23 +169,19 @@ def update_capture_status(message, portal, iscapture=True):
     except Exception as e:
         raise e
     finally:
-        if cursor:
-            cursor.close()
-        if db:
-            db.close()
+        close_db(db, cursor)
 
 
 def insert_for_update(message):
     print('Ready to insert for update.')
     try:
-        query_select = "SELECT * from ? where portal_lnge6 = '{}' and portal_late6 = '{}' and portal_name = '{}' and is_sync = 'N';"\
+        query_select = get_query(name="select_portal_in_tilekey")\
             .format(message.portal_lngE6, message.portal_latE6, message.portal_name)
-        query_insert = "INSERT INTO ? VALUES (NOW(), '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', NULL, 'N', NULL);"\
+        query_insert = get_query(name="insert_tilekey")\
             .format(message.time, message.timestamp, message.player_team, message.player_name, message.player_action, message.portal_name, message.portal_addr, message.portal_lngE6, message.portal_latE6)
-        query_update = "UPDATE ? SET time = '{}', timestamp = '{}', player_team = '{}', player_name = '{}', player_action = '{}', portal_addr = '{}' where portal_lnge6 = '{}' and portal_late6 = '{}' and portal_name = '{}' and is_sync = 'N';"\
+        query_update = get_query(name="update_tilekey")\
             .format(message.time, message.timestamp, message.player_team, message.player_name, message.player_action, message.portal_addr, message.portal_lngE6, message.portal_latE6, message.portal_name)
-        db = pymysql.connect("")
-        cursor = db.cursor()
+        db, cursor = connect_to_db()
         r = cursor.execute(query_select)
         if r == 1:
             c = cursor.fetchall()
@@ -224,10 +198,27 @@ def insert_for_update(message):
     except Exception as e:
         raise e
     finally:
-        if cursor:
-            cursor.close()
-        if db:
-            db.close()
+        close_db(db, cursor)
+
+
+def connect_to_db():
+    d = xmlReader()
+    dbinfo = d.getdbinfo()
+    db = pymysql.connect(**dbinfo)
+    cursor = db.cursor()
+    return db, cursor
+
+
+def close_db(db, cursor):
+    if cursor:
+        cursor.close()
+    if db:
+        db.close()
+
+
+def get_query(name):
+    d = xmlReader()
+    return d.getquery(name)
 
 
 if __name__ == '__main__':

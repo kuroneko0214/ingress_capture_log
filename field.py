@@ -2,45 +2,43 @@ from ingrex import Intel, Utils
 import ingrex, pymysql, time
 import requests, sys
 from datetime import datetime, timedelta
+from ingrex.xmlReader import xmlReader
 
 
 def main():
     "main function"
-    cur_time = datetime.utcfromtimestamp(time.time()) + timedelta(hours=8)
+    islocal = True
+    d = xmlReader()
+    tdelta = d.gettimedelta()
+    cur_time = datetime.utcfromtimestamp(time.time()) + timedelta(hours=tdelta)
     print(cur_time.strftime('%Y-%m-%d %H:%M:%S'), '-- Start insert portal list.')
-    reload(sys)
-    sys.setdefaultencoding('utf-8')
-    field = {
-        'minLngE6': ,
-        'minLatE6': ,
-        'maxLngE6': ,
-        'maxLatE6': ,
-    }
+    if islocal is False:
+        reload(sys)
+        sys.setdefaultencoding('utf-8')
+    field = d.getfieldrange()
     s = requests.Session()
     tilekeys = get_tile_keys()
     if len(tilekeys) > 0:
         for i in range(0, len(tilekeys)):
-
             if i >= 30:
                 print('Tilekey list is too long. Only select 30 tilekeys to process...')
                 break
             key = tilekeys[i]
             tilekey = key[0]
             print(tilekey)
-            with open('cookies') as cookies:
+            with open(d.getcookiepath(islocal=islocal)) as cookies:
                 cookies = cookies.read().strip()
             intel = Intel(cookies, field, s)
             result = intel.fetch_map([tilekey])
             entities = result['map'][tilekey]['gameEntities']
             try:
                 for entity in entities:
-                    if entity[0].endswith('.16') or entity[0].endswith('.11') or entity[0].endswith('.12'):
+                    if entity[0][-3:] in d.getentityendings():
                         portal = ingrex.Portal(entity)
                         insert_portal_from_tile(portal)
             except Exception as e:
                 update_tile_sync_status(tilekey, syncfail=True)
                 print(e)
-                # raise e
             else:
                 update_tile_sync_status(tilekey)
             time.sleep(60)
@@ -51,26 +49,22 @@ def main():
 
 def get_tile_keys():
     try:
-        query_select = "select distinct tile_key from ? where tile_key is not null and is_sync = 'N';"
-        db = pymysql.connect("")
-        cursor = db.cursor()
+        query_select = get_query(name="get_tile_keys")
+        db, cursor = connect_to_db()
         c = cursor.execute(query_select)
         r = cursor.fetchall()
         print('Get {} tile key(s).'.format(c))
     except Exception as e:
         raise e
     finally:
-        cursor.close()
-        db.close()
+        close_db(db, cursor)
     return r
 
 
 def get_portal_in_tile(portal):
     try:
-        query_tile = "select * from ? where PORTAL_LNGE6 = '{}' and PORTAL_LATE6 = '{}' and PORTAL_NAME = '{}' and IS_SYNC = 'N';"\
-            .format(portal.lngE6, portal.latE6, portal.name)
-        db = pymysql.connect("")
-        cursor = db.cursor()
+        query_tile = get_query(name="select_portal_in_tilekey").format(portal.lngE6, portal.latE6, portal.name)
+        db, cursor = connect_to_db()
         c = cursor.execute(query_tile)
         r = ''
         if c == 1:
@@ -78,16 +72,14 @@ def get_portal_in_tile(portal):
     except Exception as e:
         raise e
     finally:
-        cursor.close()
-        db.close()
+        close_db(db, cursor)
     return r
 
 
 def get_portal_in_capture(guid):
     try:
-        query_select = "select * from ? where PORTAL_GUID = '{}';".format(guid)
-        db = pymysql.connect("")
-        cursor = db.cursor()
+        query_select = get_query(name="select_portal_by_guid").format(guid)
+        db, cursor = connect_to_db()
         c = cursor.execute(query_select)
         r = ''
         if c == 1:
@@ -95,16 +87,14 @@ def get_portal_in_capture(guid):
     except Exception as e:
         raise e
     finally:
-        cursor.close()
-        db.close()
+        close_db(db, cursor)
     return r
 
 
 def update_capture_baseinfo(pcinfo, tileinfo, portal):
     try:
-        query_update = "update ? set UPDATE_TIME = NOW(), PORTAL_ID = '{}', PORTAL_NAME = '{}', PORTAL_ADDR = '{}', PORTAL_LNGE6 = '{}', PORTAL_LATE6 = '{}' where PORTAL_GUID = '{}';"
-        db = pymysql.connect("")
-        cursor = db.cursor()
+        query_update = get_query(name="update_portal_baseinfo")
+        db, cursor = connect_to_db()
         addr = ''
         if tileinfo:
             addr = tileinfo[0][7]
@@ -116,18 +106,15 @@ def update_capture_baseinfo(pcinfo, tileinfo, portal):
     except Exception as e:
         raise e
     finally:
-        cursor.close()
-        db.close()
+        close_db(db, cursor)
 
 
 def insert_portal_from_tile(portal):
     try:
-        query_insert = "INSERT INTO ? VALUES (NOW(), NOW(), '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}');"
-        query_update = "UPDATE ? SET UPDATE_TIME = NOW(), PORTAL_OWNER = '{}', PORTAL_TEAM = '{}', CAPTURE_TIME = '{}' where PORTAL_GUID = '{}';"
-        query_pureupdate = "UPDATE ? SET UPDATE_TIME = NOW() where PORTAL_GUID = '{}';"
-        db = pymysql.connect("")
-        cursor = db.cursor()
-
+        query_insert = get_query(name="insert_capture_list")
+        query_update = get_query(name="update_capture_time")
+        query_pureupdate = get_query(name="update_update_time")
+        db, cursor = connect_to_db()
         pcinfo = get_portal_in_capture(portal.guid)
         tileinfo = get_portal_in_tile(portal)
         ctime = datetime.utcfromtimestamp(time.time()) + timedelta(hours=8)
@@ -198,19 +185,17 @@ def insert_portal_from_tile(portal):
     except Exception as e:
         raise e
     finally:
-        cursor.close()
-        db.close()
+        close_db(db, cursor)
 
 
 def update_tile_sync_status(tilekey, syncfail=False):
     try:
         if syncfail:
-            query_update = "UPDATE ? set IS_SYNC = 'E', SYNC_TIME = NOW() where TILE_KEY = '{}' and IS_SYNC = 'N';".format(tilekey)
+            query_update = get_query(name="update_tilekey_status").format('E', tilekey)
             print('Tilekey[{}] sync is failed.'.format(tilekey))
         else:
-            query_update = "UPDATE ? set IS_SYNC = 'Y', SYNC_TIME = NOW() where TILE_KEY = '{}' and IS_SYNC = 'N';".format(tilekey)
-        db = pymysql.connect("")
-        cursor = db.cursor()
+            query_update = get_query(name="update_tilekey_status").format('Y', tilekey)
+        db, cursor = connect_to_db()
         cursor.execute(query_update)
         db.commit()
         if syncfail is False:
@@ -219,8 +204,27 @@ def update_tile_sync_status(tilekey, syncfail=False):
         print(query_update)
         raise e
     finally:
+        close_db(db, cursor)
+
+
+def connect_to_db():
+    d = xmlReader()
+    dbinfo = d.getdbinfo()
+    db = pymysql.connect(**dbinfo)
+    cursor = db.cursor()
+    return db, cursor
+
+
+def close_db(db, cursor):
+    if cursor:
         cursor.close()
+    if db:
         db.close()
+
+
+def get_query(name):
+    d = xmlReader()
+    return d.getquery(name)
 
 
 if __name__ == '__main__':

@@ -3,18 +3,22 @@ import lxml
 from bs4 import BeautifulSoup as bs
 from requests.utils import cookiejar_from_dict
 from datetime import datetime, timedelta
+from ingrex.xmlReader import xmlReader
 
-cur_time = datetime.utcfromtimestamp(time.time()) + timedelta(hours=8)
+
+islocal = False
+d = xmlReader()
+tdelta = d.gettimedelta()
+cur_time = datetime.utcfromtimestamp(time.time()) + timedelta(hours=tdelta)
 print(cur_time.strftime('%Y-%m-%d %H:%M:%S'), '-- Start verify cookie status.')
 
-with open('cookies') as cookie:
+with open(d.getcookiepath(islocal=islocal)) as cookie:
     cookie = cookie.read().strip()
 print('Before refresh:')
 print(cookie)
 cookie_dict = {}
-
-username = ""
-password = ""
+googleaccount = d.getgoogleaccount()
+username, password = googleaccount['username'], googleaccount['password']
 
 lst_keys = []
 lst_values = []
@@ -25,12 +29,9 @@ for lst_cookie in lst_cookies:
 cookie_dict = dict(zip(lst_keys, lst_values))
 cookie_dict.pop('SACSID')
 
-
 try:
-
     s = requests.Session()
     s.cookies.update(cookie_dict)
-
     test = s.get('https://www.ingress.com/intel')
     r = s
     v = re.findall('/jsc/gen_dashboard_([\d\w]+).js"', test.text)[0]
@@ -103,13 +104,10 @@ except IndexError:
         print(_.request.headers)
         raise e
     print(v)
-
     cookiestr = _.request.headers['Cookie']
     print('After refresh:')
     print(cookiestr)
-
-    file = open('cookies', 'w')
-
+    file = open(d.getcookiepath(islocal=islocal), 'w')
     file.write(cookiestr)
     file.close()
 

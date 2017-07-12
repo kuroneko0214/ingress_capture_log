@@ -2,21 +2,23 @@ import ingrex
 import pymysql
 from datetime import datetime, timedelta
 import time
+from ingrex.xmlReader import xmlReader
 
 
 def main():
     "main function"
-    cur_time = datetime.utcfromtimestamp(time.time()) + timedelta(hours=8)
+    d = xmlReader()
+    tdelta = d.gettimedelta()
+    cur_time = datetime.utcfromtimestamp(time.time()) + timedelta(hours=tdelta)
     print(cur_time.strftime('%Y-%m-%d %H:%M:%S'), '-- Start calculate tile keys...')
     r = ""
     try:
-        query_select = "select PORTAL_LNGE6, PORTAL_LATE6 from ? where tile_key is null;"
-        # print(query)
-        db = pymysql.connect("")
+        query_select = d.getquery(name="select_coor_to_calculate")
+        dbinfo = d.getdbinfo()
+        db = pymysql.connect(**dbinfo)
         cursor = db.cursor()
         cursor.execute(query_select)
         r = cursor.fetchall()
-        # print(r)
     except Exception as e:
         raise e
     finally:
@@ -33,10 +35,11 @@ def main():
             }
 
             xtile, ytile = ingrex.Utils.calc_tile(field['minLngE6']/1E6, field['minLatE6']/1E6, 15)
-            tilekey = '15_{}_{}_0_8_100'.format(xtile, ytile)
+            tilekey = d.gettilekeyformat().format(xtile, ytile)
+
             try:
-                query_update = "update ? set TILE_KEY = '" + tilekey + "', IS_SYNC = 'N' where PORTAL_LNGE6 = '" + result[0] + "' and PORTAL_LATE6 = '" + result[1] + "';"
-                # print(query)
+                query_update = d.getquery(name="calculate_tilekey").format(tilekey, result[0], result[1])
+                db = pymysql.connect(**dbinfo)
                 cursor = db.cursor()
                 cursor.execute(query_update)
                 db.commit()
@@ -45,8 +48,10 @@ def main():
                 print(query_update)
                 raise e
             finally:
-                cursor.close()
-                db.close()
+                if cursor:
+                    cursor.close()
+                if db:
+                    db.close()
     else:
         print('No record is found to calculate tilekey.')
     print('-' * 80)
