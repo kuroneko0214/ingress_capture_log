@@ -1,22 +1,49 @@
 # Ingrex
 
-A python lib for Google Ingress including all necessary functions you need to build a bot.
 
-Support both Python 2 and 3.
+## DESCRPTION
+Fetch the comm log within a specific area, and logging the capture information.
+Thanks for the ingrex_lib project(https://github.com/blackgear/ingrex_lib). It is implemented and enhanced a lot in my code.
+Note: The scripts now are running in my server without any human interruption. So the scripts won't be changed very frequently.
 
-This code was mainly written when I just learn Python few weeks and maybe outdated because I have no time to rewrite it, feel free to fork and improve it.
 
-## How to
+## INTRODUCTION
+1. refreshPortal.py
 
-Grab your cookies from Chrome F12 or Firefox and use the format like this:
+    Use Linux crontab to refresh portal's owner and team every 30 minutes. 
 
-    SACSID=AAAA...AAAA; csrftoken=BBBB....BBBB; ingress.intelmap.shflt=viz; ingress.intelmap.lat=40.0000000000000; ingress.intelmap.lng=120.00000000000000; ingress.intelmap.zoom=16
+2. refreshCookies.py
 
-You can copy the cookies with this format from Chrome's F12.
+    Specify your ingress account, and get the latest SACSID. You can use Linux crontab to refresh the cookies timely.
 
-The comm.py shows how to write a simple COMM monitor.
+3. calculateTilekeys.py
 
-The field.py shows how to write a simple Map infomation downloader.
+    Calculate tilekeys for the newly added portals. And wait for being refreshed by field.py.
+
+4. comm.py
+
+    Fetch comm log within a specific area. Refresh the portal details if the player action is 'captured' or 'destroyed a Resonator on'.
+
+5. field.py
+
+    Fetch all the portals in one tilekey, and refresh the capture status.
+
+## HOWTO
+You can specify the max/min lat/lng (ex, your city), and then use linux crontab to run the scripts timely like this:
+
+0 */3 * * * /usr/bin/python /root/refreshCookies.py >> /root/refreshCookies.log 2>&1
+
+*/2 * * * * /usr/bin/python /root/comm.py >> /root/comm.log 2>&1
+
+*/15 * * * * /usr/bin/python /root/calculateTilekeys.py >> /root/caltilekey.log 2>&1
+
+*/30 * * * * /usr/bin/python /root/field.py >> /root/field.log 2>&1
+
+*/30 * * * * /usr/bin/python /root/refreshPortals.py >> /root/refreshPortals.log 2>&1
+
+As of now the scripts need database connection and don't have and UI. Maybe later I will try to do some coding for the UI part.
+Hope you have a nice day with this script.
+
 
 ## LICENSE
 
