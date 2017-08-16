@@ -107,11 +107,34 @@ def get_max_timestamp():
     return int(r)
 
 
-def insert_comm(message):
+def gen_table(message):
     try:
         db, cursor = connect_to_db()
+        query = get_query(name="get_tables")
+        c = cursor.execute(query)
+        r = cursor.fetchall()
+        tb_name = '{}'.format(message.time[:7]).replace('-', '_')
+        for t in r:
+            if t[0] == tb_name:
+                break
+        else:
+            query = get_query(name="gen_comm_table").format(tb_name)
+            cursor.execute(query)
+            db.commit()
+    except Exception as e:
+        print(query)
+        raise e
+    finally:
+        close_db(db, cursor)
+        return tb_name
+
+
+def insert_comm(message):
+    try:
+        tb_name = gen_table(message)
+        db, cursor = connect_to_db()
         query = get_query(name="insert_comm")\
-            .format(message.time, message.timestamp, message.player_team, message.player_name, message.player_action, message.portal_name, message.portal_addr, message.portal_lngE6, message.portal_latE6, message.portal_text, message.raw)
+            .format(tb_name, message.time, message.timestamp, message.player_team, message.player_name, message.player_action, message.portal_name, message.portal_addr, message.portal_lngE6, message.portal_latE6, message.portal_text, message.raw)
         cursor.execute(query)
         db.commit()
     except Exception as e:
