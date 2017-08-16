@@ -20,6 +20,7 @@ def main():
     field = d.getfieldrange()
     mints, maxts = get_ts_duration()
     l_mints = maxts
+    o_mints, o_maxts = mints, maxts
 
     if mints and maxts:
         print('The overall timestamp duration is {}~{}.'.format(mints, maxts))
@@ -64,9 +65,9 @@ def main():
                 time.sleep(20)
 
         except Exception as e:
-            log_sync_failure(mints, maxts)
+            # log_sync_failure(mints, maxts)
             raise e
-        update_sync_status(mints, maxts)
+        update_sync_status(o_mints, o_maxts)
     else:
         print('No failed ts duration can be found.')
     print('-' * 80)
