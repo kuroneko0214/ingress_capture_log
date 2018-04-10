@@ -3,8 +3,10 @@
 
 ## DESCRPTION
 Fetch the comm log within a specific area, and logging the capture information.
-Thanks for the ingrex_lib project(https://github.com/blackgear/ingrex_lib). It is implemented and enhanced a lot in my code.
-Note: The scripts now are running in my server without any human interruption. So the scripts won't be changed very frequently.
+Thanks for the ingrex_lib project(https://github.com/blackgear/ingrex_lib). 
+
+## NOTE
+Since NIA has removed the guardian, this program is closed. Use the scripts inside the program has risk of been terminated by NIA. Please be caution.
 
 
 ## INTRODUCTION
